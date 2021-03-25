@@ -11,28 +11,56 @@ class LZ77():
         
     
     def encode_sequence(self, bytes_sequence):
-        ##### Instantiate sequence bitstring
-        self.bitstring = BitArray()
-
-        ##### Get source's alphabet size.
-        self.alphabet_length = len(np.unique(bytes_sequence))
-
         ##### Save sequence
         self.sequence = bytes_sequence
 
-        ##### Create look_ahead_buffer
-        self.look_ahead_buffer = self.sequence[:self.look_ahead_buffer_size]
+        ##### Generate triples
+        self.__generate_and_save_triples()
 
-        while len(self.sequence) is not 0:
-            triple = self.__generate_triple()
-            self.__update_buffers(triple[1])
-            self.__save_triple_in_bitstring(triple)
+        ##### Write triples to the bitstream
+        self.__write_triples_in_bitstring()
 
-        ##### Return encoded bitstring
+        ##### Return bitstring
         return self.bitstring
 
 
     ########## Private Methods
+
+    def __generate_and_save_triples(self):
+        ##### Create look_ahead_buffer
+        self.look_ahead_buffer = self.sequence[:self.look_ahead_buffer_size]
+
+        ##### Create list for saving triples.
+        self.triples = []
+
+        while len(self.sequence) is not 0:
+            triple = self.__generate_triple()
+            self.__update_buffers(triple[1])
+            self.triples.append(triple)
+
+
+    def __write_triples_in_bitstring(self):
+        self.triples = np.array(self.triples)
+
+        ##### Get maximum offset and match length values.
+        max_offset = self.triples[:, 0].max()
+        max_match_length = self.triples[:, 1].max()
+
+        ##### Get amount of bits required to send offset and match length.
+        offset_bits_amount = len(bin(max_offset)[2:])
+        match_length_bits_amount = len(bin(max_match_length)[2:])
+
+        ##### Instantiate bitstring with header.
+        # NOTE: We use 5 bits to write the amount of bits that encode offset and match length info.
+        self.bitstring = BitArray(f'uint:5={offset_bits_amount}, uint:5={match_length_bits_amount}')
+
+        ##### Write triples in bitstring
+        for triple in self.triples:
+            self.bitstring.append(f'uint:{offset_bits_amount}={triple[0]}')
+            self.bitstring.append(f'uint:{match_length_bits_amount}={triple[1]}')
+            self.bitstring.append(f'uint:8={triple[2]}')
+
+
 
     def __generate_triple(self):
         
@@ -65,18 +93,19 @@ class LZ77():
                 seq_index = founded_indexes[0]
                 offset = self.search_buffer_size - seq_index
                 ##### Grow the sequence size as long as the match is true.
+                sequence_length += 1
+                sequence_to_be_found = self.look_ahead_buffer[:sequence_length]
                 while ((np.sum(self.search_buffer[seq_index: seq_index + sequence_length] == sequence_to_be_found) == sequence_length)
-                                                                                 and (sequence_length <= self.look_ahead_buffer_size)):
+                            and (sequence_length < len(self.look_ahead_buffer))):
                     sequence_length += 1
                     sequence_to_be_found = self.look_ahead_buffer[:sequence_length]
                 match_length = sequence_length - 1
-                symbol = sequence_to_be_found[-1]
+                symbol = self.look_ahead_buffer[match_length]
                 break
             else:
                 last_founded_indexes = founded_indexes
 
         ##### Return triple.
-        # self.sequence = self.sequence[match_length + 1:]
         return [offset, match_length, symbol]
 
 
@@ -86,32 +115,9 @@ class LZ77():
         self.look_ahead_buffer = self.sequence[:self.look_ahead_buffer_size]
 
 
-    def __save_triple_in_bitstring(self, triple):
-        ##### Extract info from triple.
-        offset, match_length, symbol = triple
-
-        ##### Write info on bitstream.
-        self.bitstring.append(f'uint:8={offset}')
-        self.bitstring.append(f'uint:8={match_length}')
-        self.bitstring.append(f'uint:8={symbol}')
-
-        ##### Actually, this approach is applied for the decoder.
-        # joint_buffer = self.search_buffer + self.look_ahead_buffer
-        # first_idx = self.search_buffer_size - offset
-        # last_idx = self.first_idx + match_length
-
-
-
     ########## Auxiliary Methods
 
     def __rolling_window(self, window_size):
         shape = self.search_buffer.shape[:-1] + (self.search_buffer.shape[-1] - window_size + 1, window_size)
         strides = self.search_buffer.strides + (self.search_buffer.strides[-1],)
         return np.lib.stride_tricks.as_strided(self.search_buffer, shape=shape, strides=strides)
-
-
-
-text_to_encode = 'aboboraeboba'
-sequence = np.frombuffer(text_to_encode.encode(), dtype=np.int8)
-encoder = LZ77(7,5)
-sequence_bs = encoder.encode_sequence(sequence)
