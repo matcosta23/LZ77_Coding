@@ -9,24 +9,24 @@ class LZ77():
         self.search_buffer = np.empty(search_buffer_size)
         self.look_ahead_buffer_size = look_ahead_buffer_size
         
-    
-    def encode_sequence(self, bytes_sequence):
+
+    def read_sequence(self, bytes_sequence):
         ##### Save sequence
         self.sequence = bytes_sequence
 
+    
+    def encode_sequence(self):
         ##### Generate triples
-        self.__generate_and_save_triples()
+        self.generate_triples()
 
         ##### Write triples to the bitstream
-        self.__write_triples_in_bitstring()
+        self.write_triples_in_bitstring()
 
         ##### Return bitstring
-        return self.bitstring
+        return self.get_bitstring()
 
 
-    ########## Private Methods
-
-    def __generate_and_save_triples(self):
+    def generate_triples(self, ):
         ##### Create look_ahead_buffer
         self.look_ahead_buffer = self.sequence[:self.look_ahead_buffer_size]
 
@@ -38,8 +38,10 @@ class LZ77():
             self.__update_buffers(triple[1])
             self.triples.append(triple)
 
+        return self.triples    
 
-    def __write_triples_in_bitstring(self):
+
+    def write_triples_in_bitstring(self):
         self.triples = np.array(self.triples)
 
         ##### Get maximum offset and match length values.
@@ -61,12 +63,20 @@ class LZ77():
             self.bitstring.append(f'uint:8={triple[2]}')
 
 
+    def get_bitstring(self):
+        return self.bitstring
+
+
+    ########## Private Methods
+
 
     def __generate_triple(self):
+        ##### Define empty variables
+        offset = match_length = symbol = None
         
         ##### Search for a larger version of the sequence that starts the look
         #     ahead buffer while matches in the search buffer are found.
-        for sequence_length in range(1, self.look_ahead_buffer_size + 1):
+        for sequence_length in range(1, self.look_ahead_buffer_size):
             sequence_to_be_found = self.look_ahead_buffer[:sequence_length]
             ##### Get indexes where the current sequence is founded in the search buffer.
             founded_indexes = np.where(np.all(self.__rolling_window(sequence_length) == sequence_to_be_found, axis=1) == True)[0]
@@ -102,8 +112,16 @@ class LZ77():
                 match_length = sequence_length - 1
                 symbol = self.look_ahead_buffer[match_length]
                 break
+        
             else:
                 last_founded_indexes = founded_indexes
+
+        ##### If sequence length has achieved the greatest value, you assign the largest
+        #     possible offset and encode the last symbol of the look ahead buffer.
+        if (offset and match_length and symbol) is None:
+            offset = self.search_buffer_size - founded_indexes[0]
+            match_length = sequence_length
+            symbol = self.look_ahead_buffer[-1]
 
         ##### Return triple.
         return [offset, match_length, symbol]
