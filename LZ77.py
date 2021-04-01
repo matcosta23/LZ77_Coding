@@ -2,13 +2,16 @@ import numpy as np
 from bitstring import BitArray
 
 
-class LZ77():
+class LZ77():      
 
-    def __init__(self, search_buffer_size, look_ahead_buffer_size):
+    ########## Public Methods
+
+    ##### Encoding Methods
+
+    def create_buffers(self, search_buffer_size, look_ahead_buffer_size):
         self.search_buffer_size = search_buffer_size
         self.search_buffer = np.empty(search_buffer_size)
         self.look_ahead_buffer_size = look_ahead_buffer_size
-        
 
     def read_sequence(self, bytes_sequence):
         ##### Save sequence
@@ -26,7 +29,7 @@ class LZ77():
         return self.get_bitstring()
 
 
-    def generate_triples(self, ):
+    def generate_triples(self):
         ##### Create look_ahead_buffer
         self.look_ahead_buffer = self.sequence[:self.look_ahead_buffer_size]
 
@@ -65,6 +68,29 @@ class LZ77():
 
     def get_bitstring(self):
         return self.bitstring
+
+    
+    ##### Decoding Methods
+
+    def read_triples(self, triples):
+        self.triples = triples
+
+    
+    def decode_sequence_from_triples(self):
+        ##### Instantiate empty sequence
+        self.decoded_sequence = []
+
+        ##### Construct sequence from triples
+        for offset, match_length, code in self.triples:
+            ##### If offset is null, just write the code in the sequence.
+            if (offset or match_length) == 0:
+                self.decoded_sequence.append(code)
+            ##### Else, the pattern needs to be recovered and appended in the sequence jointly with the code.
+            else:
+                founded_pattern = self.decoded_sequence[(-offset):(-offset + match_length)]
+                self.decoded_sequence += founded_pattern + [code]
+
+        return self.decoded_sequence
 
 
     ########## Private Methods
@@ -132,8 +158,6 @@ class LZ77():
         self.search_buffer = np.concatenate((self.search_buffer[match_length + 1:], search_buffer_tail.astype(np.float64)))
         self.look_ahead_buffer = self.sequence[:self.look_ahead_buffer_size]
 
-
-    ########## Auxiliary Methods
 
     def __rolling_window(self, window_size):
         shape = self.search_buffer.shape[:-1] + (self.search_buffer.shape[-1] - window_size + 1, window_size)

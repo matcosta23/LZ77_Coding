@@ -30,7 +30,8 @@ class Encoder():
 
     def encode_sequence(self, search_buffer_size, look_ahead_buffer_size, second_encoding_step=False):
         ##### Instantiate LZ77 Encoder.
-        self.LZ77 = LZ77(search_buffer_size, look_ahead_buffer_size)
+        self.LZ77 = LZ77()
+        self.LZ77.create_buffers(search_buffer_size, look_ahead_buffer_size)
         self.LZ77.read_sequence(np.frombuffer(self.sequence, dtype=np.uint8))
 
         ##### Verify if a second encoding step is required.

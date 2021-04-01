@@ -7,6 +7,8 @@ from pathlib import Path
 from bitstring import BitStream, ReadError
 
 import pyae
+from LZ77 import LZ77
+
 
 
 class Decoder():
@@ -45,6 +47,12 @@ class Decoder():
             
             ##### Merge info and create triples
             triples = np.column_stack((offsets, match_lenghts, codes))
+
+            ##### Instantiate LZ77 and provide triples.
+            LZ77_decoder = LZ77()
+            LZ77_decoder.read_triples(triples)
+
+        self.sequence = LZ77_decoder.decode_sequence_from_triples()
 
         return
 
