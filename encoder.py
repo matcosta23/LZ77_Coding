@@ -38,9 +38,12 @@ class Encoder():
             ##### In this case, only the triples are required. LZ77 object does not need to write a bitstring. 
             self.triples_LZ77 = np.array(self.LZ77.generate_triples())
             self.__encode_with_AE()
+            # Signaling for second coding
+            self.bitstring.prepend('0b1')
         else:
             ##### Only file details need to be added to the bitstring.
             self.bitstring = self.LZ77.encode_sequence()
+            self.bitstring.prepend('0b0')
 
         ##### Insert encoder header
         self.__write_encoder_header()
@@ -66,11 +69,15 @@ class Encoder():
         offset_bitstring = self.__encode_from_frequency_table(offsets, offset_dict)
         match_length_bitstring = self.__encode_from_frequency_table(match_lengths, match_length_dict)
 
-        ##### Create bitstring
-        self.bitstring = BitArray()
+        ##### Get total amount of triples.
+        triples_amount = self.triples_LZ77.shape[0]
+        bits_to_write_triples_amount = len(bin(triples_amount)[2:])
 
-        self.__write_header_and_bitstring(offset_bitstring)
-        self.__write_header_and_bitstring(match_length_bitstring)
+        ##### Create bitstring
+        self.bitstring = BitArray(f'uint:5={bits_to_write_triples_amount}, uint:{bits_to_write_triples_amount}={triples_amount}')
+
+        self.__write_AE_header_and_bitstring(offset_bitstring, offset_dict)
+        self.__write_AE_header_and_bitstring(match_length_bitstring, match_length_dict)
         
         return 
 
@@ -90,7 +97,7 @@ class Encoder():
             dim_diff = width - height
             encoder_header += f', int:14={dim_diff}'
 
-        ##### 
+        ##### Write header
         self.bitstring.prepend(encoder_header)
 
     
@@ -127,14 +134,33 @@ class Encoder():
         return binary_code[2:]
 
 
-    def __write_header_and_bitstring(self, bitstring):
-        ##### Get header information
-        words_amount = int(np.ceil(len(bitstring)/16))
-        missing_bits_amount = len(bitstring)%16
+    def __write_AE_header_and_bitstring(self, bitstring_AE, frequency_table):
+        ##### Write frequency table
+        max_element = max(frequency_table.keys())
+        max_counts = max(frequency_table.values())
+
+        element_bits_amount = len(bin(max_element)[2:])
+        counts_bits_amount = len(bin(max_counts)[2:])
+
+        self.bitstring.append(f'uint:5={element_bits_amount}')
+        self.bitstring.append(f'uint:{element_bits_amount}={max_element}')
+
+        self.bitstring.append(f'uint:5={counts_bits_amount}')
+
+        for element in range(max_element + 1):
+            try:
+                element_count = frequency_table[element]
+            except KeyError:
+                element_count = 0
+            self.bitstring.append(f'uint:{counts_bits_amount}={element_count}')
+
+        ##### Write bitstring header
+        words_amount = int(np.ceil(len(bitstring_AE)/16))
+        missing_bits_amount = len(bitstring_AE)%16
         missing_bits_amount = 16 - missing_bits_amount if missing_bits_amount != 0 else 0
 
         ##### Write header
-        if words_amount < 2**16:
+        if words_amount < 2**15:
             # Flag for using only 15 bits to write words amount.
             self.bitstring.append(f'0b0')
             self.bitstring.append(f'uint:15={words_amount}')
@@ -144,8 +170,8 @@ class Encoder():
             self.bitstring.append(f'uint:20={words_amount}')
         
         ##### Write bitstring
-        bitstring += missing_bits_amount * '0'
-        self.bitstring.append(f'0b{bitstring}')
+        bitstring_AE += missing_bits_amount * '0'
+        self.bitstring.append(f'0b{bitstring_AE}')
 
         return
 
