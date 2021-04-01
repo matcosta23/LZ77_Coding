@@ -1,3 +1,4 @@
 .vscode/
 FilesToCompress/
 __pycache__/
+binary_files/

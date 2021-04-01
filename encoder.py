@@ -46,6 +46,12 @@ class Encoder():
         self.__write_encoder_header()
 
 
+    def save_binary_file(self, binary_file_path):
+        with open(binary_file_path, "wb") as bin_file:
+            bin_file.write(self.bitstring.bin.encode())
+            bin_file.close()
+
+
     ########## Private Methods
 
     def __encode_with_AE(self):
@@ -174,3 +180,4 @@ if __name__ == "__main__":
     ##### Encode source.
     encoder = Encoder(args.file_to_compress)
     encoder.encode_sequence(args.search_buffer_length, args.look_ahead_buffer_length, args.second_encoding_step)
+    encoder.save_binary_file(args.binary_file_path)
