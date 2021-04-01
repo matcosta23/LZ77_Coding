@@ -91,7 +91,7 @@ class LZ77():
                 ##### However, if this happened for longer sequences, it means that the
                 #     sequence with one element less was found in the search buffer.
                 else:
-                    seq_index = last_founded_indexes[0]
+                    seq_index = last_founded_indexes[-1]
                     offset = self.search_buffer_size - seq_index
                     match_length = sequence_length - 1
                     symbol = sequence_to_be_found[-1]
@@ -100,7 +100,7 @@ class LZ77():
             ##### If the sequence was found at only one index, it is sufficient
             #     to check the size of the match from that index.
             elif founded_indexes.shape[0] is 1:
-                seq_index = founded_indexes[0]
+                seq_index = founded_indexes[-1]
                 offset = self.search_buffer_size - seq_index
                 ##### Grow the sequence size as long as the match is true.
                 sequence_length += 1
@@ -119,7 +119,7 @@ class LZ77():
         ##### If sequence length has achieved the greatest value, you assign the largest
         #     possible offset and encode the last symbol of the look ahead buffer.
         if (offset and match_length and symbol) is None:
-            offset = self.search_buffer_size - founded_indexes[0]
+            offset = self.search_buffer_size - founded_indexes[-1]
             match_length = sequence_length
             symbol = self.look_ahead_buffer[-1]
 

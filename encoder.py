@@ -5,8 +5,10 @@ import numpy as np
 
 from PIL import Image
 from pathlib import Path
+from decimal import getcontext
 from bitstring import BitArray
 
+import pyae
 from LZ77 import LZ77
 
 
@@ -34,7 +36,7 @@ class Encoder():
         ##### Verify if a second encoding step is required.
         if second_encoding_step:
             ##### In this case, only the triples are required. LZ77 object does not need to write a bitstring. 
-            self.triples_LZ77 = self.LZ77.generate_triples()
+            self.triples_LZ77 = np.array(self.LZ77.generate_triples())
             self.__encode_with_AE()
         else:
             ##### Only file details need to be added to the bitstring.
@@ -47,8 +49,24 @@ class Encoder():
     ########## Private Methods
 
     def __encode_with_AE(self):
-        # TODO: Implement.
-        return
+        ##### Generate dictionaries.
+        offsets = self.triples_LZ77[:, 0]
+        match_lengths = self.triples_LZ77[:, 1]
+    
+        offset_dict = self.__count_values_and_create_dict(offsets)
+        match_length_dict = self.__count_values_and_create_dict(match_lengths)
+
+        ##### Encode with arithmetic encoder.
+        offset_bitstring = self.__encode_from_frequency_table(offsets, offset_dict)
+        match_length_bitstring = self.__encode_from_frequency_table(match_lengths, match_length_dict)
+
+        ##### Create bitstring
+        self.bitstring = BitArray()
+
+        self.__write_header_and_bitstring(offset_bitstring)
+        self.__write_header_and_bitstring(match_length_bitstring)
+        
+        return 
 
 
     def __write_encoder_header(self):
@@ -68,6 +86,63 @@ class Encoder():
 
         ##### 
         self.bitstring.prepend(encoder_header)
+
+    
+    def __count_values_and_create_dict(self, list):
+        ##### Count Values
+        elements, occurences = np.unique(list, return_counts=True)
+        ##### Create dictionary
+        list_dict = {}
+        for element, count in zip(elements, occurences):
+            list_dict[element] = count
+
+        return list_dict
+
+    
+    def __encode_from_frequency_table(self, message_to_encode, frequency_table):
+        ##### Uses the message length to define the precision.
+        getcontext().prec = len(message_to_encode)
+        ##### Instantiate AE
+        AE = pyae.ArithmeticEncoding(frequency_table=frequency_table, save_stages=True)
+        ##### Encode message
+        float_message, _, interval_min_value, interval_max_value = AE.encode(msg=message_to_encode,
+                                                                             probability_table=AE.probability_table)
+        ##### Generate binary
+        binary_code, _ = AE.encode_binary(interval_min_value, interval_max_value)
+
+        # TODO: Remove this decoding process.
+        # Get float message from binary
+        decoded_float_message = pyae.bin2float(binary_code)
+        # Decode message
+        decoded_message, _ = AE.decode(encoded_msg=decoded_float_message,
+                                       msg_length=len(message_to_encode),
+                                       probability_table=AE.probability_table)
+
+        return binary_code[2:]
+
+
+    def __write_header_and_bitstring(self, bitstring):
+        ##### Get header information
+        words_amount = int(np.ceil(len(bitstring)/16))
+        missing_bits_amount = len(bitstring)%16
+        missing_bits_amount = 16 - missing_bits_amount if missing_bits_amount != 0 else 0
+
+        ##### Write header
+        if words_amount < 2**16:
+            # Flag for using only 15 bits to write words amount.
+            self.bitstring.append(f'0b0')
+            self.bitstring.append(f'uint:15={words_amount}')
+        else:
+            # Flag for using 20 bits to write words amount.
+            self.bitstring.append(f'0b1')
+            self.bitstring.append(f'uint:20={words_amount}')
+        
+        ##### Write bitstring
+        bitstring += missing_bits_amount * '0'
+        self.bitstring.append(f'0b{bitstring}')
+
+        return
+
 
 
 if __name__ == "__main__":
