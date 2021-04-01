@@ -1,5 +1,5 @@
 import numpy as np
-from bitstring import BitArray
+from bitstring import BitArray, BitStream, ReadError
 
 
 class LZ77():      
@@ -65,6 +65,8 @@ class LZ77():
             self.bitstring.append(f'uint:{match_length_bits_amount}={triple[1]}')
             self.bitstring.append(f'uint:8={triple[2]}')
 
+        return
+
 
     def get_bitstring(self):
         return self.bitstring
@@ -76,19 +78,39 @@ class LZ77():
         self.triples = triples
 
     
+    def decode_sequence_from_bitstring(self, bitstring):
+        ##### Verify bitstring class
+        assert isinstance(bitstring, BitStream), "'bitstring object' is supposed to be an instance of BitStream class."
+        
+        ##### Get amount of bits used for coding offsets and lengths
+        offset_bits_amount, match_length_bits_amount = bitstring.readlist('uint:5, uint:5')
+
+        ##### Read bitstring until its end and create decode sequence.
+        self.triples = []
+        self.decoded_sequence = [] 
+
+        while True:
+            try:
+                offset = bitstring.read(f'uint:{offset_bits_amount}')
+                match_length = bitstring.read(f'uint:{match_length_bits_amount}')
+                code = bitstring.read(f'uint:8')
+
+                triple = [offset, match_length, code]
+                self.triples.append(triple)
+                self.__insert_triple_in_decoded_sequence(triple)
+            except ReadError:
+                break
+
+        return self.decoded_sequence
+
+    
     def decode_sequence_from_triples(self):
         ##### Instantiate empty sequence
         self.decoded_sequence = []
 
         ##### Construct sequence from triples
-        for offset, match_length, code in self.triples:
-            ##### If offset is null, just write the code in the sequence.
-            if (offset or match_length) == 0:
-                self.decoded_sequence.append(code)
-            ##### Else, the pattern needs to be recovered and appended in the sequence jointly with the code.
-            else:
-                founded_pattern = self.decoded_sequence[(-offset):(-offset + match_length)]
-                self.decoded_sequence += founded_pattern + [code]
+        for triple in self.triples:
+            self.__insert_triple_in_decoded_sequence(triple)
 
         return self.decoded_sequence
 
@@ -163,3 +185,15 @@ class LZ77():
         shape = self.search_buffer.shape[:-1] + (self.search_buffer.shape[-1] - window_size + 1, window_size)
         strides = self.search_buffer.strides + (self.search_buffer.strides[-1],)
         return np.lib.stride_tricks.as_strided(self.search_buffer, shape=shape, strides=strides)
+
+    
+    def __insert_triple_in_decoded_sequence(self, triple):
+        ##### Get triple info
+        offset, match_length, code = triple
+        ##### If offset is null, just write the code in the sequence.
+        if (offset or match_length) == 0:
+            self.decoded_sequence.append(code)
+        ##### Else, the pattern needs to be recovered and appended in the sequence jointly with the code.
+        else:
+            founded_pattern = self.decoded_sequence[(-offset):(-offset + match_length)]
+            self.decoded_sequence += founded_pattern + [code]

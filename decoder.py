@@ -24,6 +24,9 @@ class Decoder():
         ##### Decode encoder header
         self.__decode_header()
 
+        ##### Instantiate LZ77
+        LZ77_decoder = LZ77()
+
         ##### Verify if second encoding step was performed.
         second_coding_bit = self.bitstring.read('bin:1')
 
@@ -48,11 +51,13 @@ class Decoder():
             ##### Merge info and create triples
             triples = np.column_stack((offsets, match_lenghts, codes))
 
-            ##### Instantiate LZ77 and provide triples.
-            LZ77_decoder = LZ77()
+            ##### Provide triples to LZ77 decoder.
             LZ77_decoder.read_triples(triples)
+            self.sequence = LZ77_decoder.decode_sequence_from_triples()
 
-        self.sequence = LZ77_decoder.decode_sequence_from_triples()
+        ##### Decode with LZ77
+        else:
+            self.sequence = LZ77_decoder.decode_sequence_from_bitstring(self.bitstring)
 
         return
 
