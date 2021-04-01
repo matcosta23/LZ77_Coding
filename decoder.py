@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 
 from pathlib import Path
-from bitstring import BitStream
+from bitstring import BitStream, ReadError
 
 import pyae
 
@@ -22,14 +22,31 @@ class Decoder():
         ##### Decode encoder header
         self.__decode_header()
 
-        ##### Verify if second encoding step was performed and decode correctly.
+        ##### Verify if second encoding step was performed.
         second_coding_bit = self.bitstring.read('bin:1')
 
+        ##### Decode with AE.
         if second_coding_bit is '1':
             triples_bits_amount = self.bitstring.read('uint:5')
             self.triples_amount = self.bitstring.read(f'uint:{triples_bits_amount}')
+
             offsets = self.__decode_with_AE()
             match_lenghts = self.__decode_with_AE()
+
+            ##### Read codes until the end of the bitstring
+            codes = []
+            while True:
+                try:
+                    codes.append(self.bitstring.read('uint:8'))
+                except ReadError:
+                    break
+            ##### Verify that the number of codes written is the same as offsets and match lenghts
+            assert self.triples_amount == len(codes), "Number of codes is different from offsets and lengths."
+            
+            ##### Merge info and create triples
+            triples = np.column_stack((offsets, match_lenghts, codes))
+
+        return
 
 
     ##### Private Methods
@@ -82,7 +99,7 @@ class Decoder():
 
         return decoded_bytes
 
-        
+
 
 if __name__ == "__main__":
     ##### Receives binary to be decoded from command line.

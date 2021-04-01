@@ -76,9 +76,15 @@ class Encoder():
         ##### Create bitstring
         self.bitstring = BitArray(f'uint:5={bits_to_write_triples_amount}, uint:{bits_to_write_triples_amount}={triples_amount}')
 
+        ##### Write offsets and match lengths in the bitstring.
         self.__write_AE_header_and_bitstring(offset_bitstring, offset_dict)
         self.__write_AE_header_and_bitstring(match_length_bitstring, match_length_dict)
         
+        ##### Write codes in the bitstring.
+        codes = self.triples_LZ77[:, 2]
+        for code in codes:
+            self.bitstring.append(f'uint:8={code}')
+
         return 
 
 
