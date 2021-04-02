@@ -193,7 +193,13 @@ class LZ77():
         ##### If offset is null, just write the code in the sequence.
         if (offset or match_length) == 0:
             self.decoded_sequence.append(code)
+            return
         ##### Else, the pattern needs to be recovered and appended in the sequence jointly with the code.
+        elif offset == match_length:
+            founded_pattern = self.decoded_sequence[-offset:]
         else:
             founded_pattern = self.decoded_sequence[(-offset):(-offset + match_length)]
-            self.decoded_sequence += founded_pattern + [code]
+        
+        self.decoded_sequence += founded_pattern + [code]
+
+        return

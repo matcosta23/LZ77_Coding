@@ -1,5 +1,6 @@
 import os
 import sys
+import math
 import argparse
 import numpy as np
 
@@ -121,14 +122,16 @@ class Encoder():
     
     def __encode_from_frequency_table(self, message_to_encode, frequency_table):
         ##### Uses the message length to define the precision.
-        getcontext().prec = len(message_to_encode)
+        #getcontext().prec = int(np.ceil(math.log(len(message_to_encode), 2)) + 1)
+        getcontext().prec = 2 * len(message_to_encode)
         ##### Instantiate AE
-        AE = pyae.ArithmeticEncoding(frequency_table=frequency_table, save_stages=True)
+        AE = pyae.ArithmeticEncoding(frequency_table=frequency_table)
         ##### Encode message
         float_message, _, interval_min_value, interval_max_value = AE.encode(msg=message_to_encode,
                                                                              probability_table=AE.probability_table)
         ##### Generate binary
         binary_code, _ = AE.encode_binary(interval_min_value, interval_max_value)
+        #binary_code = pyae.float2bin(float_message)
 
         # TODO: Remove this decoding process.
         # Get float message from binary

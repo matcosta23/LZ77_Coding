@@ -4,6 +4,7 @@ import argparse
 import numpy as np
 
 from pathlib import Path
+from decimal import getcontext
 from bitstring import BitStream, ReadError
 
 import pyae
@@ -101,12 +102,15 @@ class Decoder():
         bits_to_read = 15 if bits_amount_flag == '0' else 20
         words_amount = self.bitstring.read(f'uint:{bits_to_read}')
 
+        ##### Change decimal precision
+        getcontext().prec = 10 * words_amount
+
         ##### Read bits
         ae_binary = '0.' + self.bitstring.read(f'bin:{words_amount * 16}')
         float_message = pyae.bin2float(ae_binary)
 
         ##### Instantiate AE and decode message
-        AE = pyae.ArithmeticEncoding(frequency_table=frequency_table, save_stages=True)
+        AE = pyae.ArithmeticEncoding(frequency_table=frequency_table)
         decoded_bytes, _ = AE.decode(encoded_msg=float_message, 
                                      msg_length=self.triples_amount, probability_table=AE.probability_table)
 
