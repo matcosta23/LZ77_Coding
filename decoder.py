@@ -3,6 +3,7 @@ import sys
 import argparse
 import numpy as np
 
+from PIL import Image
 from pathlib import Path
 from decimal import getcontext
 from bitstring import BitStream, ReadError
@@ -63,6 +64,42 @@ class Decoder():
         return
 
 
+    def save_decoded_file(self, decoded_file_path):
+        ##### For text files, the bytes will be transformed into chars.
+        if self.text_file:
+            text = ''.join([chr(byte) for byte in self.sequence])
+            ##### Save text in destiny path.
+            decoded_file_path += '.txt'
+            with open(decoded_file_path, "w") as decoded_file:
+                decoded_file.write(text)
+                decoded_file.close()
+        
+        ##### For images, the dimensions should be first obtained.
+        else:
+            bytes_amount = len(self.sequence)
+            second_degree_coeff = [1, np.abs(self.width_height_diff), -bytes_amount]
+            height = int(np.around(np.roots(second_degree_coeff).max(), 0))
+            width = height + self.width_height_diff
+            # Define dimensions
+            self.image_dimensions = [height, width]
+            self.image_dimensions.append(3) if self.three_channel_image else None
+            ##### Reshape Image
+            channels = 3 if self.three_channel_image else 1
+            img = np.squeeze(np.array(self.sequence, dtype=np.uint8).reshape((height, width, channels)))
+            ##### Include image extension
+            if self.three_channel_image:
+                decoded_file_path += '.png' 
+                file_format = 'PNG'
+            else:
+                decoded_file_path += '.bmp'
+                file_format = 'BMP' 
+            ##### Save image
+            image = Image.fromarray(img)
+            image.save(decoded_file_path, format=file_format)
+
+        return
+
+
     ##### Private Methods
 
     def __decode_header(self):
@@ -77,13 +114,8 @@ class Decoder():
             self.three_channel_image = True if channels_amount == '1' else False
             # Obtain width and height difference
             self.width_height_diff = self.bitstring.read('int:14')
-            # TODO: Use it after decoding the whole sequence.
-            """ second_degree_coeff = [1, np.abs(width_height_diff), -self.bytes_amount]
-            height = int(np.around(np.roots(second_degree_coeff).max(), 0))
-            width = height + width_height_diff
-            # Define dimensions
-            self.image_dimensions = [height, width]
-            self.image_dimensions.append(3) if three_channel_image else None """
+
+        return
 
 
     def __decode_with_AE(self):
@@ -144,3 +176,4 @@ if __name__ == "__main__":
     ##### Decode binary
     decoder = Decoder(args.binary_file)
     decoder.decode_bitstring()
+    decoder.save_decoded_file(args.decoded_file_path)

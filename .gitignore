@@ -2,3 +2,4 @@
 FilesToCompress/
 __pycache__/
 binary_files/
+decoded_files/

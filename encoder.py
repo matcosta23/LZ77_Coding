@@ -18,15 +18,17 @@ class Encoder():
     def __init__(self, file_path):
         ##### Verify if file is text or image.
         self.text_file = True if os.path.splitext(file_path)[-1] == '.txt' else False
+        ##### Open and read text file
+        if self.text_file:
+            orig_file = open(file_path, "rb")
+            self.sequence = orig_file.read()
+            orig_file.close()
+        ##### Open and read image
+        else:
+            image_array = np.array(Image.open(file_path))
+            self.dimensions = image_array.shape
+            self.sequence = image_array.flatten()
 
-        ##### If images, get dimensions.
-        if not self.text_file:
-            self.dimensions = np.array(Image.open(file_path)).shape
-
-        ##### Open and read file
-        orig_file = open(file_path, "rb")
-        self.sequence = orig_file.read()
-        orig_file.close()
 
 
     def encode_sequence(self, search_buffer_size, look_ahead_buffer_size, second_encoding_step=False):

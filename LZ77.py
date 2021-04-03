@@ -195,8 +195,13 @@ class LZ77():
             self.decoded_sequence.append(code)
             return
         ##### Else, the pattern needs to be recovered and appended in the sequence jointly with the code.
-        elif offset == match_length:
+        elif offset <= match_length:
             founded_pattern = self.decoded_sequence[-offset:]
+            ##### If match length is greater than offset, then the reading process should continue within the founded pattern.
+            if match_length > offset:
+                for look_ahead_buffer_idx in range(match_length - offset):
+                    founded_pattern.append(founded_pattern[look_ahead_buffer_idx])
+                #founded_pattern += founded_pattern[:(match_length - offset)]
         else:
             founded_pattern = self.decoded_sequence[(-offset):(-offset + match_length)]
         
