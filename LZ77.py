@@ -119,12 +119,16 @@ class LZ77():
 
 
     def __generate_triple(self):
+        ##### check if only one element is missing in the look ahead buffer.
+        if len(self.look_ahead_buffer) == 1:
+            return [0, 0, self.look_ahead_buffer[0]]
+
         ##### Define empty variables
         offset = match_length = symbol = None
         
         ##### Search for a larger version of the sequence that starts the look
         #     ahead buffer while matches in the search buffer are found.
-        for sequence_length in range(1, self.look_ahead_buffer_size):
+        for sequence_length in range(1, len(self.look_ahead_buffer)):
             sequence_to_be_found = self.look_ahead_buffer[:sequence_length]
             ##### Get indexes where the current sequence is founded in the search buffer.
             founded_indexes = np.where(np.all(self.__rolling_window(sequence_length) == sequence_to_be_found, axis=1) == True)[0]
