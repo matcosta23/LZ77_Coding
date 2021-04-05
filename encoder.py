@@ -12,6 +12,10 @@ from bitstring import BitArray
 import pyae
 from LZ77 import LZ77
 
+# Import Adaptative Huffman Encoder
+sys.path.insert(1, "../Adaptative_Huffman_Coding")
+from huffman_encoder import HuffmanEncoder
+
 
 class Encoder():
 
@@ -41,7 +45,7 @@ class Encoder():
         if second_encoding_step:
             ##### In this case, only the triples are required. LZ77 object does not need to write a bitstring. 
             self.triples_LZ77 = np.array(self.LZ77.generate_triples())
-            self.__encode_with_AE()
+            self.__encode_with_Adaptative_HC()
             # Signaling for second coding
             self.bitstring.prepend('0b1')
         else:
@@ -61,17 +65,14 @@ class Encoder():
 
     ########## Private Methods
 
-    def __encode_with_AE(self):
-        ##### Generate dictionaries.
+    def __encode_with_Adaptative_HC(self):
+        # NOTE: Only offsets and match_lengths will be further encoded
         offsets = self.triples_LZ77[:, 0]
         match_lengths = self.triples_LZ77[:, 1]
     
-        offset_dict = self.__count_values_and_create_dict(offsets)
-        match_length_dict = self.__count_values_and_create_dict(match_lengths)
-
-        ##### Encode with arithmetic encoder.
-        offset_bitstring = self.__encode_from_frequency_table(offsets, offset_dict)
-        match_length_bitstring = self.__encode_from_frequency_table(match_lengths, match_length_dict)
+        ##### Generate bitstrings
+        offset_bs = self.__generate_Adaptative_HC_bitstrings(offsets)
+        length_bs = self.__generate_Adaptative_HC_bitstrings(match_lengths)
 
         ##### Get total amount of triples.
         triples_amount = self.triples_LZ77.shape[0]
@@ -80,9 +81,9 @@ class Encoder():
         ##### Create bitstring
         self.bitstring = BitArray(f'uint:5={bits_to_write_triples_amount}, uint:{bits_to_write_triples_amount}={triples_amount}')
 
-        ##### Write offsets and match lengths in the bitstring.
-        self.__write_AE_header_and_bitstring(offset_bitstring, offset_dict)
-        self.__write_AE_header_and_bitstring(match_length_bitstring, match_length_dict)
+        ##### Write offsets and match lengths bitstrings in the main bitstring.
+        self.__write_bitstring_in_main_bitstring(offset_bs)
+        self.__write_bitstring_in_main_bitstring(length_bs)
         
         ##### Write codes in the bitstring.
         codes = self.triples_LZ77[:, 2]
@@ -110,80 +111,31 @@ class Encoder():
         ##### Write header
         self.bitstring.prepend(encoder_header)
 
-    
-    def __count_values_and_create_dict(self, list):
-        ##### Count Values
-        elements, occurences = np.unique(list, return_counts=True)
-        ##### Create dictionary
-        list_dict = {}
-        for element, count in zip(elements, occurences):
-            list_dict[element] = count
 
-        return list_dict
+    def __generate_Adaptative_HC_bitstrings(self, sequence):
+        ##### Get symbols amount
+        symbols_amount = len(np.unique(sequence))
 
-    
-    def __encode_from_frequency_table(self, message_to_encode, frequency_table):
-        ##### Uses the message length to define the precision.
-        #getcontext().prec = int(np.ceil(math.log(len(message_to_encode), 2)) + 1)
-        getcontext().prec = 2 * len(message_to_encode)
-        ##### Instantiate AE
-        AE = pyae.ArithmeticEncoding(frequency_table=frequency_table)
-        ##### Encode message
-        float_message, _, interval_min_value, interval_max_value = AE.encode(msg=message_to_encode,
-                                                                             probability_table=AE.probability_table)
-        ##### Generate binary
-        binary_code, _ = AE.encode_binary(interval_min_value, interval_max_value)
-        #binary_code = pyae.float2bin(float_message)
+        ##### Instantiate Huffman Encoder
+        huffman_encoder = HuffmanEncoder(symbols_amount=symbols_amount)
+        huffman_encoder.read_sequence_array(sequence)
 
-        # TODO: Remove this decoding process.
-        # Get float message from binary
-        decoded_float_message = pyae.bin2float(binary_code)
-        # Decode message
-        decoded_message, _ = AE.decode(encoded_msg=decoded_float_message,
-                                       msg_length=len(message_to_encode),
-                                       probability_table=AE.probability_table)
+        ##### Generate bitstrings
+        huffman_encoder.instantiate_bitstream()
+        huffman_encoder.encode_with_adaptative_hc()
+        bitstring = huffman_encoder.get_binary_string()
 
-        return binary_code[2:]
+        return bitstring
 
 
-    def __write_AE_header_and_bitstring(self, bitstring_AE, frequency_table):
-        ##### Write frequency table
-        max_element = max(frequency_table.keys())
-        max_counts = max(frequency_table.values())
+    def __write_bitstring_in_main_bitstring(self, bitstring):
+        ##### Include the number of bits used for the bitstring.
+        bits_amount = len(bitstring)
+        bits_to_write_bits_amount = len(bin(bits_amount)[2:])
+        self.bitstring.append(f'uint:5={bits_to_write_bits_amount}, uint:{bits_to_write_bits_amount}={bits_amount}')
 
-        element_bits_amount = len(bin(max_element)[2:])
-        counts_bits_amount = len(bin(max_counts)[2:])
-
-        self.bitstring.append(f'uint:5={element_bits_amount}')
-        self.bitstring.append(f'uint:{element_bits_amount}={max_element}')
-
-        self.bitstring.append(f'uint:5={counts_bits_amount}')
-
-        for element in range(max_element + 1):
-            try:
-                element_count = frequency_table[element]
-            except KeyError:
-                element_count = 0
-            self.bitstring.append(f'uint:{counts_bits_amount}={element_count}')
-
-        ##### Write bitstring header
-        words_amount = int(np.ceil(len(bitstring_AE)/16))
-        missing_bits_amount = len(bitstring_AE)%16
-        missing_bits_amount = 16 - missing_bits_amount if missing_bits_amount != 0 else 0
-
-        ##### Write header
-        if words_amount < 2**15:
-            # Flag for using only 15 bits to write words amount.
-            self.bitstring.append(f'0b0')
-            self.bitstring.append(f'uint:15={words_amount}')
-        else:
-            # Flag for using 20 bits to write words amount.
-            self.bitstring.append(f'0b1')
-            self.bitstring.append(f'uint:20={words_amount}')
-        
         ##### Write bitstring
-        bitstring_AE += missing_bits_amount * '0'
-        self.bitstring.append(f'0b{bitstring_AE}')
+        self.bitstring.append(f'bin={bitstring}')
 
         return
 

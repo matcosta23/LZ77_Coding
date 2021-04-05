@@ -11,7 +11,9 @@ from bitstring import BitStream, ReadError
 import pyae
 from LZ77 import LZ77
 
-
+# Import Adaptative Huffman Encoder
+sys.path.insert(1, "../Adaptative_Huffman_Coding")
+from huffman_decoder import HuffmanDecoder
 
 class Decoder():
 
@@ -34,11 +36,13 @@ class Decoder():
 
         ##### Decode with AE.
         if second_coding_bit is '1':
+            ##### Get triples amount
             triples_bits_amount = self.bitstring.read('uint:5')
             self.triples_amount = self.bitstring.read(f'uint:{triples_bits_amount}')
 
-            offsets = self.__decode_with_AE()
-            match_lenghts = self.__decode_with_AE()
+            ##### Decode offsets and lengths with Adaptative binary tree.
+            offsets = self.__decode_with_HC()
+            match_lenghts = self.__decode_with_HC()
 
             ##### Read codes until the end of the bitstring
             codes = []
@@ -118,33 +122,19 @@ class Decoder():
         return
 
 
-    def __decode_with_AE(self):
-        ##### Get frequency table
-        # Get maximum element
-        element_bits_amount = self.bitstring.read('uint:5')
-        max_element = self.bitstring.read(f'uint:{element_bits_amount}')
-        # Read counts sorted by element and generate frequency table.
-        counts_bits_amount = self.bitstring.read('uint:5')
-        frequency_table = {}
-        for element in range(max_element + 1):
-            frequency_table[element] = self.bitstring.read(f'uint:{counts_bits_amount}')
-        
-        ##### Get words amount.
-        bits_amount_flag = self.bitstring.read('bin:1')
-        bits_to_read = 15 if bits_amount_flag == '0' else 20
-        words_amount = self.bitstring.read(f'uint:{bits_to_read}')
+    def __decode_with_HC(self):
+        ##### Get amount of bits in bitstring.
+        bits_to_read = self.bitstring.read('uint:5')
+        bits_amount = self.bitstring.read(f'uint:{bits_to_read}')
 
-        ##### Change decimal precision
-        getcontext().prec = 10 * words_amount
+        ##### Read bitstring
+        bitstring = self.bitstring.read(f'bin:{bits_amount}')
 
-        ##### Read bits
-        ae_binary = '0.' + self.bitstring.read(f'bin:{words_amount * 16}')
-        float_message = pyae.bin2float(ae_binary)
-
-        ##### Instantiate AE and decode message
-        AE = pyae.ArithmeticEncoding(frequency_table=frequency_table)
-        decoded_bytes, _ = AE.decode(encoded_msg=float_message, 
-                                     msg_length=self.triples_amount, probability_table=AE.probability_table)
+        ##### Decode bitstring
+        huffman_decoder = HuffmanDecoder(symbols_amount=self.triples_amount)
+        huffman_decoder.read_bitstream(bitstring)
+        huffman_decoder.decode_with_adaptative_hc()
+        decoded_bytes = huffman_decoder.get_decoded_bytes()
 
         return decoded_bytes
 
