@@ -133,7 +133,7 @@ class Decoder():
         ##### Decode bitstring
         huffman_decoder = HuffmanDecoder(symbols_amount=self.triples_amount)
         huffman_decoder.read_bitstream(bitstring)
-        huffman_decoder.decode_with_adaptative_hc()
+        huffman_decoder.decode_with_adaptative_hc(verbose=False)
         decoded_bytes = huffman_decoder.get_decoded_bytes()
 
         return decoded_bytes

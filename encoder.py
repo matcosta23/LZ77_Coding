@@ -122,7 +122,7 @@ class Encoder():
 
         ##### Generate bitstrings
         huffman_encoder.instantiate_bitstream()
-        huffman_encoder.encode_with_adaptative_hc()
+        huffman_encoder.encode_with_adaptative_hc(verbose=False)
         bitstring = huffman_encoder.get_binary_string()
 
         return bitstring
