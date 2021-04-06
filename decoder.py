@@ -15,6 +15,9 @@ from LZ77 import LZ77
 sys.path.insert(1, "../Adaptative_Huffman_Coding")
 from huffman_decoder import HuffmanDecoder
 
+
+########## LZ77 Decoding Class
+
 class Decoder():
 
     def __init__(self, binary_file):
@@ -140,30 +143,38 @@ class Decoder():
 
 
 
-if __name__ == "__main__":
-    ##### Receives binary to be decoded from command line.
-    parser = argparse.ArgumentParser(description="Receives binary file and path to save reconstructed file.")
-    
-    parser.add_argument('--binary_file', required=True, help='Path to binary file.')
-    parser.add_argument('--decoded_file_path', required=False, help="Path to save decoded file. "
-                                                   "If folders do not exist, they'll be created.")
+########## Auxiliary Methods
 
-    ##### Read command line
-    args = parser.parse_args(sys.argv[1:])
-    
+def menage_decoded_file_path(args):
     ##### Define directory path.
     if args.decoded_file_path:
         directory = Path(os.path.dirname(args.decoded_file_path))
     else:
         directory = Path("decoded_files")
-        file_name = os.path.splitext(os.path.basename(args.binary_file))[0]
+        file_name = os.path.splitext(os.path.basename(args.binary_file_path))[0]
         args.decoded_file_path = os.path.join(directory, file_name) 
     
     ##### Create directory.
     if not directory.exists():
         directory.mkdir(parents=True)
 
+
+
+if __name__ == "__main__":
+    ##### Receives binary to be decoded from command line.
+    parser = argparse.ArgumentParser(description="Receives binary file and path to save reconstructed file.")
+    
+    parser.add_argument('--binary_file_path', required=True, help='Path to binary file.')
+    parser.add_argument('--decoded_file_path', required=False, help="Path to save decoded file. "
+                                                   "If folders do not exist, they'll be created.")
+
+    ##### Read command line
+    args = parser.parse_args(sys.argv[1:])
+    
+    ##### Menage decoded file path
+    menage_decoded_file_path(args)
+
     ##### Decode binary
-    decoder = Decoder(args.binary_file)
+    decoder = Decoder(args.binary_file_path)
     decoder.decode_bitstring()
     decoder.save_decoded_file(args.decoded_file_path)

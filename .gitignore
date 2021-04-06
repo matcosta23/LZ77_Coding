@@ -3,3 +3,5 @@ FilesToCompress/
 __pycache__/
 binary_files/
 decoded_files/
+Temp_Saved_Arrays/
+tests_with_HC.py

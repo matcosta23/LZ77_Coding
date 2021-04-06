@@ -17,6 +17,8 @@ sys.path.insert(1, "../Adaptative_Huffman_Coding")
 from huffman_encoder import HuffmanEncoder
 
 
+########## LZ77 Encoding Class
+
 class Encoder():
 
     def __init__(self, file_path):
@@ -57,10 +59,21 @@ class Encoder():
         self.__write_encoder_header()
 
 
+    def compute_rate(self):
+        ##### Get sequence and bitstring lengths.
+        bits_used = len(self.bitstring.bin)
+        sequence_length = len(self.sequence)
+
+        ##### Compute rate.
+        rate = bits_used/sequence_length
+        return rate
+        
+
     def save_binary_file(self, binary_file_path):
         with open(binary_file_path, "wb") as bin_file:
             bin_file.write(self.bitstring.bin.encode())
             bin_file.close()
+      
 
 
     ########## Private Methods
@@ -141,6 +154,23 @@ class Encoder():
 
 
 
+########## Auxiliary Methods
+
+def menage_binary_file_path(args):
+    ##### Define directory path.
+    if args.binary_file_path:
+        directory = Path(os.path.dirname(args.binary_file_path))
+    else:
+        directory = Path("binary_files")
+        file_name = os.path.splitext(os.path.basename(args.file_to_compress))[0]
+        args.binary_file_path = os.path.join(directory, file_name + '.bin') 
+    
+    ##### Create directory.
+    if not directory.exists():
+        directory.mkdir(parents=True)
+
+
+
 if __name__ == "__main__":
     ##### Receives file to be compressed from command line.
     parser = argparse.ArgumentParser(description="Receives file to be encoded and binary filepath.")
@@ -155,19 +185,10 @@ if __name__ == "__main__":
     ##### Read command line
     args = parser.parse_args(sys.argv[1:])
     
-    ##### Define directory path.
-    if args.binary_file_path:
-        directory = Path(os.path.dirname(args.binary_file_path))
-    else:
-        directory = Path("binary_files")
-        file_name = os.path.splitext(os.path.basename(args.file_to_compress))[0]
-        args.binary_file_path = os.path.join(directory, file_name + '.bin') 
-    
-    ##### Create directory.
-    if not directory.exists():
-        directory.mkdir(parents=True)
+    ##### Menage binary file path
+    menage_binary_file_path(args)   
 
-    ##### Encode source.
+    ##### Encode source
     encoder = Encoder(args.file_to_compress)
     encoder.encode_sequence(args.search_buffer_length, args.look_ahead_buffer_length, args.second_encoding_step)
     encoder.save_binary_file(args.binary_file_path)
