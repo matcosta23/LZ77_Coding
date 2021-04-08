@@ -94,3 +94,6 @@ if __name__ == "__main__":
 
         ##### Compute total time
         print_process_duration(encoding_start, decoding_finish, "Total Process")
+
+        ##### Separate Execution
+        print("---------------------------------------------------------------------\n")

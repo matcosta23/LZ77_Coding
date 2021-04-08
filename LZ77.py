@@ -95,9 +95,8 @@ class LZ77():
                 match_length = bitstring.read(f'uint:{match_length_bits_amount}')
                 code = bitstring.read(f'uint:8')
 
-                triple = [offset, match_length, code]
-                self.triples.append(triple)
-                self.__insert_triple_in_decoded_sequence(triple)
+                self.triples.append([offset, match_length, code])
+                self.__insert_triple_in_decoded_sequence(offset, match_length, code)
             except ReadError:
                 break
 
