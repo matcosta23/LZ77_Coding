@@ -9,7 +9,6 @@ from pathlib import Path
 from decimal import getcontext
 from bitstring import BitArray
 
-import pyae
 from LZ77 import LZ77
 
 # Import Adaptative Huffman Encoder
@@ -176,8 +175,8 @@ if __name__ == "__main__":
     parser.add_argument('--file_to_compress', required=True, help='Path to file to be compressed.')
     parser.add_argument('--binary_file_path', required=False, help="Path to save binary file. "
                                                                    "If folders do not exist, they'll be created.")
-    parser.add_argument('--search_buffer_length', default=32, type=int, help='Buffer size with the already encoded symbols.')
-    parser.add_argument('--look_ahead_buffer_length', default=16, type=int, help='Buffer size with symbols to be encoded.')
+    parser.add_argument('--search_buffer_length', default=31, type=int, help='Buffer size with the already encoded symbols.')
+    parser.add_argument('--look_ahead_buffer_length', default=15, type=int, help='Buffer size with symbols to be encoded.')
     parser.add_argument('--second_encoding_step', action='store_true', help='Flag to set a second encoding step.')
 
     ##### Read command line

@@ -8,7 +8,6 @@ from pathlib import Path
 from decimal import getcontext
 from bitstring import BitStream, ReadError
 
-import pyae
 from LZ77 import LZ77
 
 # Import Adaptative Huffman Encoder
