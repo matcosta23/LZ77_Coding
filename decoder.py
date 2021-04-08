@@ -45,20 +45,11 @@ class Decoder():
 
             ##### Decode offsets and lengths with Adaptative binary tree.
             offsets = self.__decode_with_HC()
-            match_lenghts = self.__decode_with_HC()
-
-            ##### Read codes until the end of the bitstring
-            codes = []
-            while True:
-                try:
-                    codes.append(self.bitstring.read('uint:8'))
-                except ReadError:
-                    break
-            ##### Verify that the number of codes written is the same as offsets and match lenghts
-            assert self.triples_amount == len(codes), "Number of codes is different from offsets and lengths."
+            match_lengths = self.__decode_with_HC()
+            codes = self.__decode_with_HC()
             
             ##### Merge info and create triples
-            triples = np.column_stack((offsets, match_lenghts, codes))
+            triples = np.column_stack((offsets, match_lengths, codes))
 
             ##### Provide triples to LZ77 decoder.
             LZ77_decoder.read_triples(triples)

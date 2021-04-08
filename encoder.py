@@ -82,10 +82,12 @@ class Encoder():
         # NOTE: Only offsets and match_lengths will be further encoded
         offsets = self.triples_LZ77[:, 0]
         match_lengths = self.triples_LZ77[:, 1]
+        codes = self.triples_LZ77[:, 2]
     
         ##### Generate bitstrings
         offset_bs = self.__generate_Adaptative_HC_bitstrings(offsets)
         length_bs = self.__generate_Adaptative_HC_bitstrings(match_lengths)
+        codes_bs  = self.__generate_Adaptative_HC_bitstrings(codes)
 
         ##### Get total amount of triples.
         triples_amount = self.triples_LZ77.shape[0]
@@ -97,11 +99,7 @@ class Encoder():
         ##### Write offsets and match lengths bitstrings in the main bitstring.
         self.__write_bitstring_in_main_bitstring(offset_bs)
         self.__write_bitstring_in_main_bitstring(length_bs)
-        
-        ##### Write codes in the bitstring.
-        codes = self.triples_LZ77[:, 2]
-        for code in codes:
-            self.bitstring.append(f'uint:8={code}')
+        self.__write_bitstring_in_main_bitstring(codes_bs)
 
         return 
 

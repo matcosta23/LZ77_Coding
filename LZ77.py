@@ -110,7 +110,8 @@ class LZ77():
 
         ##### Construct sequence from triples
         for triple in self.triples:
-            self.__insert_triple_in_decoded_sequence(triple)
+            offset, match_length, code = triple
+            self.__insert_triple_in_decoded_sequence(int(offset), int(match_length), int(code))
 
         return self.decoded_sequence
 
@@ -191,9 +192,7 @@ class LZ77():
         return np.lib.stride_tricks.as_strided(self.search_buffer, shape=shape, strides=strides)
 
     
-    def __insert_triple_in_decoded_sequence(self, triple):
-        ##### Get triple info
-        offset, match_length, code = triple
+    def __insert_triple_in_decoded_sequence(self, offset, match_length, code):
         ##### If offset is null, just write the code in the sequence.
         if (offset or match_length) == 0:
             self.decoded_sequence.append(code)
@@ -205,7 +204,6 @@ class LZ77():
             if match_length > offset:
                 for look_ahead_buffer_idx in range(match_length - offset):
                     founded_pattern.append(founded_pattern[look_ahead_buffer_idx])
-                #founded_pattern += founded_pattern[:(match_length - offset)]
         else:
             founded_pattern = self.decoded_sequence[(-offset):(-offset + match_length)]
         
